@@ -1,4 +1,9 @@
 <?php
+$senhaCorreta = $_ENV['ADMIN_PASS'] ?? '123456'; // fallback local
+if (($_POST['senha'] ?? '') !== $senhaCorreta) {
+    http_response_code(403);
+    die('Acesso negado.');
+}
 if (!file_exists('logs.txt')) {
   echo '<p>Nenhum dado capturado ainda.</p>';
   exit;
