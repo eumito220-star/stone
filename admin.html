@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Painel Admin – Stone</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --bg:#f1f5f9;
+  --card:#ffffff;
+  --pri:#00d4aa;
+  --pri-dark:#00b796;
+  --text:#1e293b;
+  --muted:#64748b;
+  --line:#e2e8f0;
+  --radius:10px;
+  --shadow:0 2px 8px rgba(0,0,0,.05);
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Inter",system-ui}
+body{background:var(--bg);padding:30px;color:var(--text)}
+h1{font-size:24px;font-weight:700;margin-bottom:24px}
+.section{background:var(--card);border-radius:var(--radius);padding:24px;margin-bottom:24px;box-shadow:var(--shadow)}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+input,textarea,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:var(--radius);font-size:14px;margin-bottom:14px}
+textarea{resize:vertical;min-height:60px}
+.row{display:flex;gap:16px}
+.row>div{flex:1}
+.btn{background:var(--pri);color:#fff;border:none;padding:10px 18px;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:14px}
+.btn:hover{background:var(--pri-dark)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px;text-align:left;border-bottom:1px solid var(--line)}
+th{background:#f8fafc;font-weight:600}
+.export{margin-top:16px}
+</style>
+</head>
+<body>
+<h1>Painel Administrativo – Checkout Stone</h1>
+
+<!-- CONFIGURAÇÕES -->
+<div class="section">
+  <h2 style="margin-bottom:12px">Configurações</h2>
+  <div class="row">
+    <div>
+      <label>Descrição do produto</label>
+      <textarea id="descricao">Curso Premium – React do Zero ao Avançado</textarea>
+    </div>
+    <div>
+      <label>Valor (R$)</label>
+      <input type="number" id="valor" step="0.01" value="997">
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>Máximo de parcelas</label>
+      <input type="number" id="maxParc" min="1" max="24" value="12">
+    </div>
+    <div>
+      <label>Código Pix copia-cola</label>
+      <textarea id="qrString" placeholder="00020126...6304ABCD"></textarea>
+    </div>
+  </div>
+  <div>
+    <label>Imagem-QR base64 (opcional)</label>
+    <input type="file" id="qrFile" accept="image/*">
+    <textarea id="qrBase64" placeholder="Cole aqui ou carregue o arquivo"></textarea>
+  </div>
+  <button class="btn" onclick="salvar()">Salvar alterações</button>
+  <button class="btn" style="margin-left:8px;background:#64748b" onclick="localStorage.clear();alert('Cache limpo!')">Limpar tudo</button>
+</div>
+
+<!-- VENDAS -->
+<div class="section">
+  <h2>Vendas / Leads</h2>
+  <input type="text" id="busca" placeholder="Buscar por nome, CPF ou e-mail..." oninput="render()">
+  <div style="overflow-x:auto">
+    <table id="tabela">
+      <thead>
+        <tr><th>Hora</th><th>Nome</th><th>CPF</th><th>Valor</th><th>Método</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <button class="btn export" onclick="exportCSV()">Exportar CSV</button>
+</div>
+
+<script>
+/* ---------- CARREGA ---------- */
+['descricao','valor','maxParc','qrString','qrBase64'].forEach(k=>{
+  if(localStorage[k]) document.getElementById(k).value = localStorage[k];
+});
+document.getElementById('qrFile').addEventListener('change', e=>{
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader(); reader.onload=()=>document.getElementById('qrBase64').value=reader.result;
+  reader.readAsDataURL(file);
+});
+function salvar(){
+  ['descricao','valor','maxParc','qrString','qrBase64'].forEach(k=>localStorage[k]=document.getElementById(k).value.trim());
+  alert('Salvo! Recarregue a página de vendas para ver as mudanças.');
+}
+/* ---------- RENDER TABELA ---------- */
+function render(){
+  const leads=JSON.parse(localStorage.leads||'[]').reverse();
+  const busca=document.getElementById('busca').value.toLowerCase();
+  const tbody=document.querySelector('#tabela tbody');
+  tbody.innerHTML='';
+  leads.filter(l=>JSON.stringify(l).toLowerCase().includes(busca)).forEach(l=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${new Date(l.hora).toLocaleString()}</td>
+      <td>${l.nome||'-'}</td>
+      <td>${l.cpf||'-'}</td>
+      <td>R$ ${(+l.valor||0).toFixed(2).replace('.',',')}</td>
+      <td>${l.metodo}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+render();
+/* ---------- CSV ---------- */
+function exportCSV(){
+  const leads=JSON.parse(localStorage.leads||'[]');
+  if(!leads.length){alert('Nenhuma venda para exportar');return;}
+  const header='data:text/csv;charset=utf-8,';
+  const csv=header+Object.keys(leads[0]).join(',')+'\n'+leads.map(l=>Object.values(l).join(',')).join('\n');
+  const link=document.createElement('a');link.href=encodeURI(csv);link.download='leads.csv';link.click();
+}
+</script>
+</body>
+</html>
